@@ -3,7 +3,8 @@ require 'addressable/uri'
 require 'rest-client'
 require 'nokogiri'
 
-SUPER_SECRET_API_KEY = "AIzaSyDXw95SCfN2pOVdtmDuFNF7nHQslaf9-dc"
+
+SUPER_SECRET_API_KEY = File.read("secret_key.txt")
 
 class IceCreamFinder
 
@@ -46,20 +47,6 @@ class IceCreamFinder
     ).to_s
   end
 
-  def get_lat_long
-    location = JSON.parse(RestClient.get(geocode_request))
-    lat = location["results"][0]["geometry"]["location"]["lat"]
-    long = location["results"][0]["geometry"]["location"]["lng"]
-    "#{lat}, #{long}"
-  end
-
-  def find_places
-    locations = JSON.parse(RestClient.get(places_request))
-    lat =  locations["results"].first["geometry"]["location"]["lat"]
-    long = locations["results"].first["geometry"]["location"]["lng"]
-    "#{lat}, #{long}"
-  end
-
   def directions_query
     query = Addressable::URI.new(
       :scheme => "https",
@@ -72,8 +59,27 @@ class IceCreamFinder
         :mode => "walking"
       }
     ).to_s
-
   end
+
+  def get_lat_long
+    location_result = JSON.parse(RestClient.get(geocode_request))
+    location =  location_result["results"][0]["geometry"]["location"]
+    lat = location["lat"]
+    long = location["lng"]
+    "#{lat}, #{long}"
+  end
+
+  def find_places
+    location_result = JSON.parse(RestClient.get(places_request))
+    @name = location_result["results"].first["name"]
+    @destination_address = location_result["results"].first["vicinity"]
+    location = location_result["results"].first["geometry"]["location"]
+
+    lat =  location["lat"]
+    long = location["lng"]
+    "#{lat}, #{long}"
+  end
+
 
   def give_directions
     JSON.parse(RestClient.get(directions_query))
@@ -81,6 +87,7 @@ class IceCreamFinder
 
   def print_directions
     directions = give_directions
+    puts "Let's take a walk to #{@name}! Located at #{@destination_address}"
     directions["routes"][0]["legs"][0]["steps"].each_with_index do |step, idx|
       parsed_html = Nokogiri::HTML(step["html_instructions"])
       puts "Step #{idx + 1} = #{parsed_html.text}"
